@@ -1,8 +1,8 @@
 // Initialize Lucide Icons
 lucide.createIcons();
 
-// Virtual File System
-const files = {
+// --- Default Data ---
+const DEFAULT_FILES = {
     'index.html': {
         name: 'index.html',
         language: 'html',
@@ -13,15 +13,14 @@ const files = {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Live Preview</title>
   <style>
-    /* Styles are injected dynamically */
+    /* Styles from style.css will be injected here */
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Hello, World!</h1>
-    <p>Edit the HTML, CSS, and JS files to see changes instantly.</p>
-    <button id="btn">Click Me</button>
-    <div id="output"></div>
+    <p>Welcome to your live editor.</p>
+    <button id="btn">Test Console Log</button>
   </div>
 </body>
 </html>`
@@ -31,26 +30,21 @@ const files = {
         language: 'css',
         content: `body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: #ffffff;
+  background-color: #f3f4f6;
   color: #333;
-  padding: 2rem;
   display: flex;
   justify-content: center;
+  padding-top: 50px;
 }
-
 .container {
-  text-align: center;
-  max-width: 600px;
-  border: 1px solid #eee;
+  background: white;
   padding: 2rem;
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  text-align: center;
 }
-
-h1 { color: #007acc; }
-
 button {
-  background: #007acc;
+  background: #2563eb;
   color: white;
   border: none;
   padding: 8px 16px;
@@ -58,30 +52,32 @@ button {
   cursor: pointer;
   margin-top: 1rem;
 }
-
-button:hover { background: #005fa3; }`
+button:hover { background: #1d4ed8; }`
     },
     'script.js': {
         name: 'script.js',
         language: 'javascript',
-        content: `console.log("Javascript loaded!");
+        content: `console.log("System: JavaScript Loaded successfully.");
 
-const btn = document.getElementById('btn');
-const output = document.getElementById('output');
-
-btn.addEventListener('click', () => {
-  output.innerHTML = "<p style='color: green; margin-top: 10px;'>✨ JavaScript is working! ✨</p>";
+document.getElementById('btn').addEventListener('click', () => {
+  console.log("Button clicked at " + new Date().toLocaleTimeString());
+  alert("Check the Console tab below!");
 });`
     }
 };
 
+// --- State Management (LocalStorage) ---
+let files = JSON.parse(localStorage.getItem('my-editor-project')) || JSON.parse(JSON.stringify(DEFAULT_FILES));
 let activeFile = 'index.html';
 let editorInstance = null;
 
-// Monaco Editor Configuration
+// --- Monaco Editor Setup ---
 require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
 
 require(['vs/editor/editor.main'], function () {
+    // Hide loading spinner
+    document.getElementById('editor-loading').style.display = 'none';
+
     // Create Editor
     editorInstance = monaco.editor.create(document.getElementById('monaco-editor-container'), {
         value: files[activeFile].content,
@@ -91,12 +87,15 @@ require(['vs/editor/editor.main'], function () {
         minimap: { enabled: true },
         fontSize: 14,
         fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+        wordWrap: 'off',
         padding: { top: 16 }
     });
 
-    // Listen for changes
+    // Save & Preview on Change
     editorInstance.onDidChangeModelContent(() => {
         files[activeFile].content = editorInstance.getValue();
+        saveToStorage();
+        document.getElementById('save-status').innerText = "Saving...";
         debouncedUpdatePreview();
     });
 
@@ -104,25 +103,41 @@ require(['vs/editor/editor.main'], function () {
     updatePreview();
 });
 
-// Switch Active File
+// --- Core Functions ---
+
+function saveToStorage() {
+    localStorage.setItem('my-editor-project', JSON.stringify(files));
+    setTimeout(() => {
+        document.getElementById('save-status').innerText = "All changes saved";
+    }, 500);
+}
+
+function resetProject() {
+    if(confirm("Are you sure? This will reset all your code to default.")) {
+        localStorage.removeItem('my-editor-project');
+        location.reload();
+    }
+}
+
 function switchFile(fileName) {
     if (!editorInstance) return;
-
-    // Save current state is handled by onDidChangeModelContent, 
-    // but just to be safe we sync before switching
+    
+    // Sync current file before switching
     files[activeFile].content = editorInstance.getValue();
+    saveToStorage();
 
-    // Update UI
+    // UI Updates
     document.querySelectorAll('.file-item, .tab').forEach(el => el.classList.remove('active'));
     document.getElementById(`file-${getExt(fileName)}`).classList.add('active');
     document.getElementById(`tab-${getExt(fileName)}`).classList.add('active');
 
-    // Update Logic
+    // Switch Logic
     activeFile = fileName;
+    const file = files[fileName];
     
     // Update Editor
-    const file = files[fileName];
-    monaco.editor.setModelLanguage(editorInstance.getModel(), file.language);
+    const model = editorInstance.getModel();
+    monaco.editor.setModelLanguage(model, file.language);
     editorInstance.setValue(file.content);
     document.getElementById('lang-display').innerText = file.language.toUpperCase();
 }
@@ -134,12 +149,14 @@ function getExt(fileName) {
     return '';
 }
 
-// Live Preview Logic
+// --- Preview & Console Logic ---
+
 function updatePreview() {
     const html = files['index.html'].content;
     const css = files['style.css'].content;
     const js = files['script.js'].content;
 
+    // We inject a script to capture console.log from the iframe
     const source = `
     <!DOCTYPE html>
     <html lang="en">
@@ -150,10 +167,31 @@ function updatePreview() {
     <body>
         ${html}
         <script>
+            // Console Interceptor
+            (function(){
+                const oldLog = console.log;
+                const oldError = console.error;
+                const oldWarn = console.warn;
+                
+                console.log = function(...args){
+                    window.parent.postMessage({type: 'log', level: 'info', args: args}, '*');
+                    oldLog.apply(console, args);
+                };
+                console.error = function(...args){
+                    window.parent.postMessage({type: 'log', level: 'error', args: args}, '*');
+                    oldError.apply(console, args);
+                };
+                console.warn = function(...args){
+                    window.parent.postMessage({type: 'log', level: 'warn', args: args}, '*');
+                    oldWarn.apply(console, args);
+                };
+            })();
+            
+            // User Script
             try {
                 ${js}
             } catch (err) {
-                console.error(err);
+                console.error(err.message);
             }
         </script>
     </body>
@@ -164,14 +202,66 @@ function updatePreview() {
     iframe.srcdoc = source;
 }
 
-// Debounce to prevent flashing on every keypress
+// Listen for Console Messages from Iframe
+window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'log') {
+        logToConsole(event.data.level, event.data.args);
+    }
+});
+
+function logToConsole(level, args) {
+    const output = document.getElementById('console-output');
+    const line = document.createElement('div');
+    line.className = `log-entry ${level}`;
+    
+    // Convert args to string
+    const text = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+    ).join(' ');
+    
+    line.textContent = `> ${text}`;
+    output.appendChild(line);
+    output.scrollTop = output.scrollHeight; // Auto scroll
+}
+
+// Debounce (800ms)
 let timeout;
 function debouncedUpdatePreview() {
     clearTimeout(timeout);
-    timeout = setTimeout(updatePreview, 1000);
+    timeout = setTimeout(updatePreview, 800);
 }
 
-// Download Project as ZIP
+// --- Editor Features ---
+
+function formatCode() {
+    if(editorInstance) {
+        editorInstance.getAction('editor.action.formatDocument').run();
+    }
+}
+
+function toggleWordWrap() {
+    if(editorInstance) {
+        const current = editorInstance.getOption(monaco.editor.EditorOption.wordWrap);
+        const newState = current === 'on' ? 'off' : 'on';
+        editorInstance.updateOptions({ wordWrap: newState });
+    }
+}
+
+// --- UI Toggles ---
+
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+}
+
+function toggleConsole() {
+    const panel = document.getElementById('console-panel');
+    panel.classList.toggle('hidden');
+}
+
+function clearConsole() {
+    document.getElementById('console-output').innerHTML = '';
+}
+
 function downloadProject() {
     const zip = new JSZip();
     zip.file("index.html", files['index.html'].content);
@@ -181,7 +271,7 @@ function downloadProject() {
     zip.generateAsync({type:"blob"}).then(function(content) {
         const link = document.createElement("a");
         link.href = URL.createObjectURL(content);
-        link.download = "my-website-project.zip";
+        link.download = "my-project.zip";
         link.click();
     });
 }

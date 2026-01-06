@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VS Code Clone - Online Editor</title>
     
-    <!-- Tailwind CSS (for layout) -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Icons -->
@@ -14,29 +14,44 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
 
-    <!-- JSZip for downloading -->
+    <!-- JSZip -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body class="bg-[#1e1e1e] text-gray-300 font-sans h-screen flex flex-col overflow-hidden select-none">
 
     <!-- TOP BAR -->
-    <header class="h-10 bg-[#333333] flex items-center justify-between px-4 border-b border-[#1e1e1e] shadow-sm z-20">
+    <header class="h-10 bg-[#333333] flex items-center justify-between px-4 border-b border-[#1e1e1e] shadow-sm z-20 relative">
         <div class="flex items-center space-x-4 text-xs">
+            <!-- Mobile Menu Button -->
+            <button onclick="toggleSidebar()" class="md:hidden p-1 hover:bg-[#444] rounded text-gray-300">
+                <i data-lucide="menu" class="w-4 h-4"></i>
+            </button>
+
             <div class="flex items-center font-bold text-[#007acc]">
                 <i data-lucide="layout-template" class="w-4 h-4 mr-2"></i>
-                VS Code Clone
+                <span class="hidden sm:inline">VS Code Clone</span>
             </div>
-            <nav class="hidden md:flex space-x-3 text-gray-400">
-                <span class="hover:text-white cursor-pointer">File</span>
-                <span class="hover:text-white cursor-pointer">Edit</span>
-                <span class="hover:text-white cursor-pointer">View</span>
+            
+            <!-- Editor Actions -->
+            <nav class="flex space-x-2 text-gray-400">
+                <button onclick="formatCode()" class="hover:text-white px-2 py-1 hover:bg-[#444] rounded flex items-center" title="Format Document">
+                    <i data-lucide="align-left" class="w-3.5 h-3.5 mr-1"></i> Format
+                </button>
+                <button onclick="toggleWordWrap()" class="hover:text-white px-2 py-1 hover:bg-[#444] rounded flex items-center" title="Toggle Word Wrap">
+                    <i data-lucide="wrap-text" class="w-3.5 h-3.5 mr-1"></i> Wrap
+                </button>
             </nav>
         </div>
-        <div class="flex items-center space-x-3">
-            <button onclick="updatePreview()" class="p-1.5 hover:bg-[#444] rounded text-green-500 hover:text-green-400 transition-colors" title="Refresh Preview">
+
+        <div class="flex items-center space-x-2">
+            <button onclick="resetProject()" class="p-1.5 hover:bg-[#444] rounded text-red-400 hover:text-red-300 transition-colors" title="Reset Project to Default" aria-label="Reset Project">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+            </button>
+            <div class="w-px h-4 bg-gray-600 mx-1"></div>
+            <button onclick="updatePreview()" class="p-1.5 hover:bg-[#444] rounded text-green-500 hover:text-green-400 transition-colors" title="Refresh Preview" aria-label="Refresh Preview">
                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
             </button>
-            <button onclick="downloadProject()" class="flex items-center px-3 py-1.5 bg-[#007acc] hover:bg-[#005a9e] text-white text-xs font-semibold rounded transition-colors">
+            <button onclick="downloadProject()" class="flex items-center px-3 py-1.5 bg-[#007acc] hover:bg-[#005a9e] text-white text-xs font-semibold rounded transition-colors" aria-label="Export Project">
                 <i data-lucide="download" class="w-3.5 h-3.5 mr-1.5"></i>
                 Export
             </button>
@@ -44,12 +59,13 @@
     </header>
 
     <!-- MAIN WORKSPACE -->
-    <div class="flex-1 flex overflow-hidden">
+    <div class="flex-1 flex overflow-hidden relative">
         
-        <!-- SIDEBAR -->
-        <div class="w-64 bg-[#252526] flex flex-col border-r border-[#1e1e1e]" id="sidebar">
-            <div class="h-9 px-4 flex items-center text-xs font-bold uppercase tracking-wider text-gray-400 bg-[#252526] mt-2">
+        <!-- SIDEBAR (Collapsible on Mobile) -->
+        <div class="w-64 bg-[#252526] flex flex-col border-r border-[#1e1e1e] transform -translate-x-full md:translate-x-0 transition-transform duration-200 absolute md:relative z-10 h-full" id="sidebar">
+            <div class="h-9 px-4 flex items-center justify-between text-xs font-bold uppercase tracking-wider text-gray-400 bg-[#252526] mt-2">
                 <span>Explorer</span>
+                <button onclick="toggleSidebar()" class="md:hidden"><i data-lucide="x" class="w-3 h-3"></i></button>
             </div>
             
             <div class="flex-1 overflow-y-auto pt-2">
@@ -58,7 +74,6 @@
                     <span class="uppercase">My Project</span>
                 </div>
                 
-                <!-- File List -->
                 <div class="file-item active" onclick="switchFile('index.html')" id="file-html">
                     <i data-lucide="file-code" class="w-4 h-4 text-orange-500 mr-2"></i>
                     index.html
@@ -78,7 +93,7 @@
         <div class="flex-1 flex flex-col bg-[#1e1e1e] min-w-0">
             
             <!-- TABS -->
-            <div class="flex bg-[#252526] overflow-x-auto border-b border-[#1e1e1e] h-9">
+            <div class="flex bg-[#252526] overflow-x-auto border-b border-[#1e1e1e] h-9 scrollbar-hide">
                 <div class="tab active" onclick="switchFile('index.html')" id="tab-html">
                     <i data-lucide="file-code" class="w-3.5 h-3.5 text-orange-500 mr-2"></i>
                     index.html
@@ -95,32 +110,59 @@
 
             <div class="flex-1 flex flex-col md:flex-row min-h-0">
                 <!-- EDITOR CONTAINER -->
-                <div class="flex-1 border-r border-[#333] relative bg-[#1e1e1e]">
-                    <div id="monaco-editor-container" style="width:100%; height:100%;"></div>
+                <div class="flex-1 border-r border-[#333] relative bg-[#1e1e1e] flex flex-col">
+                    <!-- Loading Spinner -->
+                    <div id="editor-loading" class="absolute inset-0 flex items-center justify-center bg-[#1e1e1e] z-10 text-gray-500 text-sm">
+                        <i data-lucide="loader-2" class="w-5 h-5 animate-spin mr-2"></i> Loading Editor...
+                    </div>
+                    <div id="monaco-editor-container" class="flex-1 w-full h-full"></div>
                 </div>
 
                 <!-- PREVIEW CONTAINER -->
-                <div class="flex-1 bg-white flex flex-col relative min-h-[300px] md:min-h-0">
-                    <div class="h-8 bg-[#f0f0f0] border-b border-[#ddd] flex items-center px-4 justify-between">
+                <div class="flex-1 bg-white flex flex-col relative min-h-[350px] md:min-h-0 border-t md:border-t-0 md:border-l border-[#333]">
+                    <!-- Preview Header -->
+                    <div class="h-8 bg-[#f0f0f0] border-b border-[#ddd] flex items-center px-4 justify-between shrink-0">
                         <span class="text-xs font-semibold text-gray-600 uppercase tracking-wider flex items-center">
                             <i data-lucide="play" class="w-3 h-3 mr-1.5 text-green-600"></i>
-                            Live Preview
+                            Preview
                         </span>
+                        <button onclick="toggleConsole()" class="text-[10px] uppercase font-bold text-gray-500 hover:text-gray-800 flex items-center bg-gray-200 px-2 py-1 rounded">
+                            <i data-lucide="terminal" class="w-3 h-3 mr-1"></i> Console
+                        </button>
                     </div>
-                    <iframe id="preview-frame" class="flex-1 w-full h-full border-none bg-white" sandbox="allow-scripts allow-modals"></iframe>
+
+                    <!-- Iframe -->
+                    <div class="flex-1 relative">
+                        <iframe id="preview-frame" class="absolute inset-0 w-full h-full border-none bg-white" sandbox="allow-scripts allow-modals"></iframe>
+                    </div>
+
+                    <!-- Console Panel (Hidden by default) -->
+                    <div id="console-panel" class="hidden h-1/3 bg-[#222] border-t border-[#444] flex flex-col">
+                        <div class="h-6 bg-[#333] flex items-center justify-between px-2 text-xs text-gray-300 select-none">
+                            <span>JS Console</span>
+                            <div class="flex space-x-2">
+                                <button onclick="clearConsole()" class="hover:text-white" title="Clear"><i data-lucide="ban" class="w-3 h-3"></i></button>
+                                <button onclick="toggleConsole()" class="hover:text-white"><i data-lucide="x" class="w-3 h-3"></i></button>
+                            </div>
+                        </div>
+                        <div id="console-output" class="flex-1 overflow-y-auto p-2 font-mono text-xs space-y-1 text-green-400">
+                            <!-- Logs appear here -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
     
     <!-- STATUS BAR -->
-    <footer class="h-6 bg-[#007acc] text-white flex items-center px-3 text-xs justify-between z-20">
+    <footer class="h-6 bg-[#007acc] text-white flex items-center px-3 text-xs justify-between z-20 shrink-0">
         <div class="flex items-center space-x-3">
             <span class="font-semibold">main*</span>
+            <span class="text-white/60 hidden sm:inline" id="save-status">All changes saved</span>
         </div>
         <div class="flex items-center space-x-4">
-            <span>Ln 1, Col 1</span>
-            <span>UTF-8</span>
+            <span class="hidden sm:inline">Ln 1, Col 1</span>
+            <span class="hidden sm:inline">UTF-8</span>
             <span id="lang-display">HTML</span>
         </div>
     </footer>
