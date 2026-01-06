@@ -1,4 +1,4 @@
-/* Custom Scrollbar */
+/* --- Core Scrollbars --- */
 ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
@@ -14,7 +14,26 @@
     background: #4f4f4f; 
 }
 
-/* Tab Styles */
+/* --- Split.js Gutters --- */
+.gutter {
+    background-color: #1e1e1e;
+    background-repeat: no-repeat;
+    background-position: 50%;
+    transition: background-color 0.2s;
+}
+.gutter:hover {
+    background-color: #007acc;
+}
+.gutter.gutter-horizontal {
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==');
+    cursor: col-resize;
+}
+.gutter.gutter-vertical {
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAFAQMAAABoV83XAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjAAIALAAJyFhqLAAAAABJRU5ErkJggg==');
+    cursor: row-resize;
+}
+
+/* --- UI Elements --- */
 .tab {
     display: flex;
     align-items: center;
@@ -22,10 +41,12 @@
     cursor: pointer;
     font-size: 13px;
     color: #969696;
-    border-right: 1px solid #1e1e1e;
-    min-width: 120px;
+    border-right: 1px solid #252526;
+    min-width: 100px;
+    max-width: 200px;
     background: #2d2d2d;
     border-top: 2px solid transparent;
+    user-select: none;
 }
 .tab:hover {
     background: #2a2d2e;
@@ -36,13 +57,12 @@
     border-top: 2px solid #007acc;
 }
 
-/* Sidebar File Items */
 .file-item {
     display: flex;
     align-items: center;
-    padding: 4px 20px;
+    padding: 4px 12px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     color: #cccccc;
     border-left: 2px solid transparent;
 }
@@ -55,16 +75,24 @@
     border-left: 2px solid #007acc;
 }
 
-/* Mobile Sidebar Animation */
-#sidebar.open {
-    transform: translateX(0);
-}
-
-/* Console Styling */
+/* --- Console Colors --- */
 .log-entry {
     border-bottom: 1px solid #333;
-    padding-bottom: 2px;
+    padding: 2px 0;
+    font-family: 'Menlo', 'Monaco', monospace;
+    white-space: pre-wrap;
 }
-.log-entry.error { color: #ff5555; }
-.log-entry.warn { color: #f1fa8c; }
-.log-entry.info { color: #8be9fd; }
+.log-entry.error { color: #ff6b6b; background: rgba(255,0,0,0.1); }
+.log-entry.warn { color: #f1c40f; }
+.log-entry.info { color: #61dafb; }
+.log-entry.log { color: #e0e0e0; }
+
+/* --- Toastify Override --- */
+.toastify {
+    background: #007acc !important;
+    color: white !important;
+    font-family: sans-serif;
+    font-size: 13px;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}

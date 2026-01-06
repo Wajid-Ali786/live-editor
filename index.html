@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VS Code Clone - Online Editor</title>
+    <title>VS Code Clone - Pro Editor</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -14,46 +14,47 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
 
-    <!-- JSZip -->
+    <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/split.js/1.6.0/split.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 </head>
 <body class="bg-[#1e1e1e] text-gray-300 font-sans h-screen flex flex-col overflow-hidden select-none">
 
     <!-- TOP BAR -->
-    <header class="h-10 bg-[#333333] flex items-center justify-between px-4 border-b border-[#1e1e1e] shadow-sm z-20 relative">
+    <header class="h-10 bg-[#333333] flex items-center justify-between px-4 border-b border-[#1e1e1e] shadow-sm z-30 relative">
         <div class="flex items-center space-x-4 text-xs">
-            <!-- Mobile Menu Button -->
             <button onclick="toggleSidebar()" class="md:hidden p-1 hover:bg-[#444] rounded text-gray-300">
                 <i data-lucide="menu" class="w-4 h-4"></i>
             </button>
 
             <div class="flex items-center font-bold text-[#007acc]">
                 <i data-lucide="layout-template" class="w-4 h-4 mr-2"></i>
-                <span class="hidden sm:inline">VS Code Clone</span>
+                <span class="hidden sm:inline">VS Code Pro</span>
             </div>
             
-            <!-- Editor Actions -->
             <nav class="flex space-x-2 text-gray-400">
-                <button onclick="formatCode()" class="hover:text-white px-2 py-1 hover:bg-[#444] rounded flex items-center" title="Format Document">
-                    <i data-lucide="align-left" class="w-3.5 h-3.5 mr-1"></i> Format
+                <button onclick="openTemplateModal()" class="hover:text-white px-2 py-1 hover:bg-[#444] rounded flex items-center">
+                    <i data-lucide="file-plus" class="w-3.5 h-3.5 mr-1"></i> New
                 </button>
-                <button onclick="toggleWordWrap()" class="hover:text-white px-2 py-1 hover:bg-[#444] rounded flex items-center" title="Toggle Word Wrap">
-                    <i data-lucide="wrap-text" class="w-3.5 h-3.5 mr-1"></i> Wrap
+                <button onclick="openSettingsModal()" class="hover:text-white px-2 py-1 hover:bg-[#444] rounded flex items-center">
+                    <i data-lucide="settings" class="w-3.5 h-3.5 mr-1"></i> Settings
+                </button>
+                <button onclick="generateShareUrl()" class="hover:text-white px-2 py-1 hover:bg-[#444] rounded flex items-center text-blue-400">
+                    <i data-lucide="share-2" class="w-3.5 h-3.5 mr-1"></i> Share
                 </button>
             </nav>
         </div>
 
         <div class="flex items-center space-x-2">
-            <button onclick="resetProject()" class="p-1.5 hover:bg-[#444] rounded text-red-400 hover:text-red-300 transition-colors" title="Reset Project to Default" aria-label="Reset Project">
-                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+            <div id="save-indicator" class="text-[10px] text-gray-500 mr-2 hidden sm:block">Saved</div>
+            <button onclick="updatePreview()" class="p-1.5 hover:bg-[#444] rounded text-green-500 hover:text-green-400 transition-colors" title="Run (Ctrl+Enter)">
+                <i data-lucide="play" class="w-3.5 h-3.5"></i>
             </button>
-            <div class="w-px h-4 bg-gray-600 mx-1"></div>
-            <button onclick="updatePreview()" class="p-1.5 hover:bg-[#444] rounded text-green-500 hover:text-green-400 transition-colors" title="Refresh Preview" aria-label="Refresh Preview">
-                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-            </button>
-            <button onclick="downloadProject()" class="flex items-center px-3 py-1.5 bg-[#007acc] hover:bg-[#005a9e] text-white text-xs font-semibold rounded transition-colors" aria-label="Export Project">
-                <i data-lucide="download" class="w-3.5 h-3.5 mr-1.5"></i>
-                Export
+            <button onclick="downloadProject()" class="flex items-center px-3 py-1.5 bg-[#007acc] hover:bg-[#005a9e] text-white text-xs font-semibold rounded transition-colors">
+                <i data-lucide="download" class="w-3.5 h-3.5 mr-1.5"></i> Export
             </button>
         </div>
     </header>
@@ -61,93 +62,69 @@
     <!-- MAIN WORKSPACE -->
     <div class="flex-1 flex overflow-hidden relative">
         
-        <!-- SIDEBAR (Collapsible on Mobile) -->
-        <div class="w-64 bg-[#252526] flex flex-col border-r border-[#1e1e1e] transform -translate-x-full md:translate-x-0 transition-transform duration-200 absolute md:relative z-10 h-full" id="sidebar">
-            <div class="h-9 px-4 flex items-center justify-between text-xs font-bold uppercase tracking-wider text-gray-400 bg-[#252526] mt-2">
+        <!-- SIDEBAR -->
+        <div class="w-64 bg-[#252526] flex flex-col border-r border-[#1e1e1e] transform -translate-x-full md:translate-x-0 transition-transform duration-200 absolute md:relative z-20 h-full" id="sidebar">
+            <div class="h-9 px-4 flex items-center justify-between text-xs font-bold uppercase tracking-wider text-gray-400 bg-[#252526] mt-2 group">
                 <span>Explorer</span>
-                <button onclick="toggleSidebar()" class="md:hidden"><i data-lucide="x" class="w-3 h-3"></i></button>
+                <div class="flex space-x-1">
+                    <button onclick="promptNewFile()" class="hover:text-white p-1" title="New File"><i data-lucide="file-plus" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="toggleSidebar()" class="md:hidden hover:text-white p-1"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                </div>
             </div>
             
-            <div class="flex-1 overflow-y-auto pt-2">
-                <div class="flex items-center px-2 text-xs font-bold text-gray-300 mb-1">
-                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 mr-1"></i>
-                    <span class="uppercase">My Project</span>
-                </div>
-                
-                <div class="file-item active" onclick="switchFile('index.html')" id="file-html">
-                    <i data-lucide="file-code" class="w-4 h-4 text-orange-500 mr-2"></i>
-                    index.html
-                </div>
-                <div class="file-item" onclick="switchFile('style.css')" id="file-css">
-                    <i data-lucide="file-type" class="w-4 h-4 text-blue-400 mr-2"></i>
-                    style.css
-                </div>
-                <div class="file-item" onclick="switchFile('script.js')" id="file-js">
-                    <i data-lucide="file-json" class="w-4 h-4 text-yellow-400 mr-2"></i>
-                    script.js
-                </div>
+            <div id="file-list" class="flex-1 overflow-y-auto pt-2">
+                <!-- File list injected by JS -->
             </div>
         </div>
 
-        <!-- EDITOR & PREVIEW SPLIT -->
+        <!-- SPLIT CONTAINER -->
         <div class="flex-1 flex flex-col bg-[#1e1e1e] min-w-0">
-            
             <!-- TABS -->
-            <div class="flex bg-[#252526] overflow-x-auto border-b border-[#1e1e1e] h-9 scrollbar-hide">
-                <div class="tab active" onclick="switchFile('index.html')" id="tab-html">
-                    <i data-lucide="file-code" class="w-3.5 h-3.5 text-orange-500 mr-2"></i>
-                    index.html
-                </div>
-                <div class="tab" onclick="switchFile('style.css')" id="tab-css">
-                    <i data-lucide="file-type" class="w-3.5 h-3.5 text-blue-400 mr-2"></i>
-                    style.css
-                </div>
-                <div class="tab" onclick="switchFile('script.js')" id="tab-js">
-                    <i data-lucide="file-json" class="w-3.5 h-3.5 text-yellow-400 mr-2"></i>
-                    script.js
-                </div>
+            <div id="tab-list" class="flex bg-[#252526] overflow-x-auto border-b border-[#1e1e1e] h-9 scrollbar-hide">
+                <!-- Tabs injected by JS -->
             </div>
 
-            <div class="flex-1 flex flex-col md:flex-row min-h-0">
-                <!-- EDITOR CONTAINER -->
-                <div class="flex-1 border-r border-[#333] relative bg-[#1e1e1e] flex flex-col">
-                    <!-- Loading Spinner -->
+            <!-- SPLIT CONTENT -->
+            <div class="flex-1 flex flex-col md:flex-row min-h-0 relative" id="split-parent">
+                
+                <!-- EDITOR -->
+                <div id="editor-pane" class="relative bg-[#1e1e1e] flex flex-col">
                     <div id="editor-loading" class="absolute inset-0 flex items-center justify-center bg-[#1e1e1e] z-10 text-gray-500 text-sm">
-                        <i data-lucide="loader-2" class="w-5 h-5 animate-spin mr-2"></i> Loading Editor...
+                        <i data-lucide="loader-2" class="w-5 h-5 animate-spin mr-2"></i> Loading Monaco...
                     </div>
                     <div id="monaco-editor-container" class="flex-1 w-full h-full"></div>
                 </div>
 
-                <!-- PREVIEW CONTAINER -->
-                <div class="flex-1 bg-white flex flex-col relative min-h-[350px] md:min-h-0 border-t md:border-t-0 md:border-l border-[#333]">
-                    <!-- Preview Header -->
+                <!-- PREVIEW -->
+                <div id="preview-pane" class="bg-white flex flex-col relative border-l border-[#333]">
                     <div class="h-8 bg-[#f0f0f0] border-b border-[#ddd] flex items-center px-4 justify-between shrink-0">
                         <span class="text-xs font-semibold text-gray-600 uppercase tracking-wider flex items-center">
-                            <i data-lucide="play" class="w-3 h-3 mr-1.5 text-green-600"></i>
-                            Preview
+                            <i data-lucide="globe" class="w-3 h-3 mr-1.5 text-blue-600"></i> Preview
                         </span>
-                        <button onclick="toggleConsole()" class="text-[10px] uppercase font-bold text-gray-500 hover:text-gray-800 flex items-center bg-gray-200 px-2 py-1 rounded">
-                            <i data-lucide="terminal" class="w-3 h-3 mr-1"></i> Console
-                        </button>
+                        <div class="flex space-x-2">
+                            <button onclick="toggleConsole()" class="text-[10px] uppercase font-bold text-gray-500 hover:text-gray-800 flex items-center bg-gray-200 px-2 py-1 rounded">
+                                <i data-lucide="terminal" class="w-3 h-3 mr-1"></i> Console
+                            </button>
+                            <button onclick="popOutPreview()" class="text-gray-500 hover:text-gray-800" title="Open in New Tab">
+                                <i data-lucide="external-link" class="w-3 h-3"></i>
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Iframe -->
-                    <div class="flex-1 relative">
-                        <iframe id="preview-frame" class="absolute inset-0 w-full h-full border-none bg-white" sandbox="allow-scripts allow-modals"></iframe>
+                    <div class="flex-1 relative bg-white">
+                        <iframe id="preview-frame" class="absolute inset-0 w-full h-full border-none" sandbox="allow-scripts allow-modals"></iframe>
                     </div>
 
-                    <!-- Console Panel (Hidden by default) -->
-                    <div id="console-panel" class="hidden h-1/3 bg-[#222] border-t border-[#444] flex flex-col">
-                        <div class="h-6 bg-[#333] flex items-center justify-between px-2 text-xs text-gray-300 select-none">
-                            <span>JS Console</span>
+                    <!-- CONSOLE PANEL -->
+                    <div id="console-panel" class="hidden h-1/3 bg-[#222] border-t border-[#444] flex flex-col absolute bottom-0 w-full z-10 shadow-xl">
+                        <div class="h-7 bg-[#333] flex items-center justify-between px-2 text-xs text-gray-300 select-none">
+                            <div class="flex items-center"><i data-lucide="terminal" class="w-3 h-3 mr-1.5"></i> JS Console</div>
                             <div class="flex space-x-2">
-                                <button onclick="clearConsole()" class="hover:text-white" title="Clear"><i data-lucide="ban" class="w-3 h-3"></i></button>
-                                <button onclick="toggleConsole()" class="hover:text-white"><i data-lucide="x" class="w-3 h-3"></i></button>
+                                <button onclick="clearConsole()" class="hover:text-white p-1" title="Clear"><i data-lucide="ban" class="w-3 h-3"></i></button>
+                                <button onclick="toggleConsole()" class="hover:text-white p-1"><i data-lucide="x" class="w-3 h-3"></i></button>
                             </div>
                         </div>
-                        <div id="console-output" class="flex-1 overflow-y-auto p-2 font-mono text-xs space-y-1 text-green-400">
-                            <!-- Logs appear here -->
-                        </div>
+                        <div id="console-output" class="flex-1 overflow-y-auto p-2 font-mono text-xs space-y-1 text-gray-300 bg-[#1e1e1e]"></div>
                     </div>
                 </div>
             </div>
@@ -155,21 +132,83 @@
     </div>
     
     <!-- STATUS BAR -->
-    <footer class="h-6 bg-[#007acc] text-white flex items-center px-3 text-xs justify-between z-20 shrink-0">
+    <footer class="h-6 bg-[#007acc] text-white flex items-center px-3 text-xs justify-between z-30 shrink-0">
         <div class="flex items-center space-x-3">
-            <span class="font-semibold">main*</span>
-            <span class="text-white/60 hidden sm:inline" id="save-status">All changes saved</span>
+            <span class="font-semibold"><i data-lucide="git-branch" class="w-3 h-3 inline mr-1"></i>main</span>
         </div>
         <div class="flex items-center space-x-4">
-            <span class="hidden sm:inline">Ln 1, Col 1</span>
-            <span class="hidden sm:inline">UTF-8</span>
+            <span id="cursor-position" class="hidden sm:inline">Ln 1, Col 1</span>
             <span id="lang-display">HTML</span>
         </div>
     </footer>
 
-    <!-- Monaco Loader -->
+    <!-- SETTINGS MODAL -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-[#252526] w-96 rounded-lg shadow-2xl border border-[#444] text-gray-300">
+            <div class="flex justify-between items-center p-3 border-b border-[#444]">
+                <span class="font-bold">Settings</span>
+                <button onclick="closeModals()"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-4 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold mb-2 uppercase text-gray-500">Theme</label>
+                    <select id="theme-select" onchange="changeTheme(this.value)" class="w-full bg-[#3c3c3c] border border-[#555] rounded p-1.5 text-sm text-white focus:outline-none focus:border-[#007acc]">
+                        <option value="vs-dark">Dark (Default)</option>
+                        <option value="vs">Light</option>
+                        <option value="hc-black">High Contrast</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold mb-2 uppercase text-gray-500">External CDN Libraries (One URL per line)</label>
+                    <textarea id="cdn-input" class="w-full h-32 bg-[#3c3c3c] border border-[#555] rounded p-2 text-xs font-mono text-white focus:outline-none focus:border-[#007acc]" placeholder="https://cdn.jsdelivr.net/npm/jquery..."></textarea>
+                </div>
+                <button onclick="saveSettings()" class="w-full bg-[#007acc] hover:bg-[#005fa3] text-white py-1.5 rounded text-sm font-semibold transition-colors">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TEMPLATES MODAL -->
+    <div id="templates-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-[#252526] w-80 rounded-lg shadow-2xl border border-[#444] text-gray-300">
+            <div class="flex justify-between items-center p-3 border-b border-[#444]">
+                <span class="font-bold">New Project</span>
+                <button onclick="closeModals()"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-2">
+                <button onclick="loadTemplate('vanilla')" class="w-full text-left p-3 hover:bg-[#37373d] rounded flex items-center group">
+                    <div class="bg-yellow-500/20 p-2 rounded mr-3 group-hover:bg-yellow-500/30"><i data-lucide="file-code" class="w-5 h-5 text-yellow-500"></i></div>
+                    <div>
+                        <div class="font-bold text-sm text-white">Vanilla JS</div>
+                        <div class="text-[10px] text-gray-500">HTML, CSS, JS starter</div>
+                    </div>
+                </button>
+                <button onclick="loadTemplate('react')" class="w-full text-left p-3 hover:bg-[#37373d] rounded flex items-center group">
+                    <div class="bg-blue-500/20 p-2 rounded mr-3 group-hover:bg-blue-500/30"><i data-lucide="atom" class="w-5 h-5 text-blue-500"></i></div>
+                    <div>
+                        <div class="font-bold text-sm text-white">React (CDN)</div>
+                        <div class="text-[10px] text-gray-500">React 18 + Babel</div>
+                    </div>
+                </button>
+                <button onclick="loadTemplate('three')" class="w-full text-left p-3 hover:bg-[#37373d] rounded flex items-center group">
+                    <div class="bg-purple-500/20 p-2 rounded mr-3 group-hover:bg-purple-500/30"><i data-lucide="box" class="w-5 h-5 text-purple-500"></i></div>
+                    <div>
+                        <div class="font-bold text-sm text-white">Three.js</div>
+                        <div class="text-[10px] text-gray-500">3D Scene Starter</div>
+                    </div>
+                </button>
+                <button onclick="loadTemplate('tailwind')" class="w-full text-left p-3 hover:bg-[#37373d] rounded flex items-center group">
+                    <div class="bg-cyan-500/20 p-2 rounded mr-3 group-hover:bg-cyan-500/30"><i data-lucide="wind" class="w-5 h-5 text-cyan-500"></i></div>
+                    <div>
+                        <div class="font-bold text-sm text-white">Tailwind CSS</div>
+                        <div class="text-[10px] text-gray-500">Modern utility-first CSS</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
-    <!-- Main Logic -->
     <script src="script.js"></script>
 </body>
 </html>
