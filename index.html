@@ -42,6 +42,9 @@
                 <button onclick="openSettingsModal()" class="hover:text-white px-2 py-1 hover:bg-[#444] rounded flex items-center">
                     <i data-lucide="settings" class="w-3.5 h-3.5 mr-1"></i> Settings
                 </button>
+                <button onclick="openCommandPalette()" class="hover:text-white px-2 py-1 hover:bg-[#444] rounded flex items-center">
+                    <i data-lucide="terminal-square" class="w-3.5 h-3.5 mr-1"></i> Command Palette
+                </button>
                 <button onclick="generateShareUrl()" class="hover:text-white px-2 py-1 hover:bg-[#444] rounded flex items-center text-blue-400">
                     <i data-lucide="share-2" class="w-3.5 h-3.5 mr-1"></i> Share
                 </button>
@@ -138,6 +141,8 @@
         </div>
         <div class="flex items-center space-x-4">
             <span id="cursor-position" class="hidden sm:inline">Ln 1, Col 1</span>
+            <span id="wrap-status" class="hidden sm:inline">Wrap: Off</span>
+            <span id="font-status" class="hidden sm:inline">Font: 14px</span>
             <span id="lang-display">HTML</span>
         </div>
     </footer>
@@ -204,6 +209,18 @@
                     </div>
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- COMMAND PALETTE -->
+    <div id="command-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-start justify-center pt-24 backdrop-blur-sm">
+        <div class="bg-[#252526] w-[560px] rounded-lg shadow-2xl border border-[#444] text-gray-300 overflow-hidden">
+            <div class="flex items-center gap-2 border-b border-[#333] px-4 py-3">
+                <i data-lucide="search" class="w-4 h-4 text-gray-400"></i>
+                <input id="command-input" type="text" placeholder="Type a command..." class="w-full bg-transparent text-sm text-white focus:outline-none" />
+                <span class="text-[10px] text-gray-500">Ctrl+Shift+P</span>
+            </div>
+            <div id="command-list" class="max-h-72 overflow-y-auto"></div>
         </div>
     </div>
 
