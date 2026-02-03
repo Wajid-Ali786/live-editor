@@ -75,6 +75,25 @@
     border-left: 2px solid #007acc;
 }
 
+/* --- Command Palette --- */
+.command-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: #e0e0e0;
+    cursor: pointer;
+}
+.command-item:hover,
+.command-item.active {
+    background: #37373d;
+}
+.command-item span {
+    color: #9a9a9a;
+    font-size: 11px;
+}
+
 /* --- Console Colors --- */
 .log-entry {
     border-bottom: 1px solid #333;

@@ -11,10 +11,14 @@ const DEFAULT_PROJECT = {
 let files = {};
 let activeFile = 'index.html';
 let editor = null;
-let appSettings = JSON.parse(localStorage.getItem('vscode-clone-settings')) || {
+const defaultSettings = {
     theme: 'vs-dark',
-    cdns: []
+    cdns: [],
+    wordWrap: false,
+    minimap: true,
+    fontSize: 14
 };
+let appSettings = { ...defaultSettings, ...(JSON.parse(localStorage.getItem('vscode-clone-settings')) || {}) };
 
 // --- STARTUP LOGIC ---
 async function init() {
@@ -52,6 +56,7 @@ async function init() {
     // 5. Restore Settings
     document.getElementById('cdn-input').value = appSettings.cdns.join('\n');
     document.getElementById('theme-select').value = appSettings.theme;
+    updateStatusBar();
 }
 
 function loadLocal() {
@@ -71,8 +76,9 @@ async function initMonaco() {
                 language: files[activeFile].language,
                 theme: appSettings.theme,
                 automaticLayout: true,
-                minimap: { enabled: true },
-                fontSize: 14,
+                minimap: { enabled: appSettings.minimap },
+                wordWrap: appSettings.wordWrap ? 'on' : 'off',
+                fontSize: appSettings.fontSize,
                 fontFamily: '"Fira Code", "Menlo", "Monaco", monospace',
                 fontLigatures: true,
                 padding: { top: 16 }
@@ -106,16 +112,45 @@ function promptNewFile() {
     if (!name) return;
     if (files[name]) return toast("File already exists", "error");
 
-    const ext = name.split('.').pop();
-    let lang = 'plaintext';
-    if (ext === 'js') lang = 'javascript';
-    if (ext === 'css') lang = 'css';
-    if (ext === 'html') lang = 'html';
+    let lang = getLanguageForFile(name);
 
     files[name] = { name, language: lang, content: '' };
     saveProject();
     renderExplorer();
     switchFile(name);
+}
+
+function renameFile(name) {
+    const newName = prompt("Rename file to:", name);
+    if (!newName || newName === name) return;
+    if (files[newName]) return toast("File already exists", "error");
+
+    const file = files[name];
+    delete files[name];
+    file.name = newName;
+    file.language = getLanguageForFile(newName);
+    files[newName] = file;
+    if (activeFile === name) activeFile = newName;
+    saveProject();
+    renderExplorer();
+    renderTabs();
+    switchFile(activeFile);
+}
+
+function duplicateFile(name) {
+    const duplicateName = prompt("Duplicate file as:", `copy-${name}`);
+    if (!duplicateName) return;
+    if (files[duplicateName]) return toast("File already exists", "error");
+
+    const file = files[name];
+    files[duplicateName] = {
+        name: duplicateName,
+        language: getLanguageForFile(duplicateName),
+        content: file.content
+    };
+    saveProject();
+    renderExplorer();
+    renderTabs();
 }
 
 function deleteFile(name) {
@@ -169,10 +204,18 @@ function renderExplorer() {
                 <i data-lucide="${icon}" class="w-4 h-4 ${color} mr-2"></i>
                 <span class="truncate w-32">${file.name}</span>
             </div>
-            ${file.name !== 'index.html' ? 
-                `<button onclick="event.stopPropagation(); deleteFile('${file.name}')" class="opacity-0 group-hover:opacity-100 hover:text-red-400 p-1">
-                    <i data-lucide="trash-2" class="w-3 h-3"></i>
-                </button>` : ''}
+            <div class="flex items-center opacity-0 group-hover:opacity-100">
+                <button onclick="event.stopPropagation(); duplicateFile('${file.name}')" class="hover:text-blue-400 p-1" title="Duplicate">
+                    <i data-lucide="copy" class="w-3 h-3"></i>
+                </button>
+                <button onclick="event.stopPropagation(); renameFile('${file.name}')" class="hover:text-yellow-400 p-1" title="Rename">
+                    <i data-lucide="edit-3" class="w-3 h-3"></i>
+                </button>
+                ${file.name !== 'index.html' ? 
+                    `<button onclick="event.stopPropagation(); deleteFile('${file.name}')" class="hover:text-red-400 p-1" title="Delete">
+                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                    </button>` : ''}
+            </div>
         `;
         list.appendChild(div);
     });
@@ -278,6 +321,18 @@ function saveProject() {
     setTimeout(() => document.getElementById('save-indicator').style.opacity = 0.5, 500);
 }
 
+function persistSettings() {
+    localStorage.setItem('vscode-clone-settings', JSON.stringify(appSettings));
+    updateStatusBar();
+}
+
+function updateStatusBar() {
+    const wrapStatus = document.getElementById('wrap-status');
+    const fontStatus = document.getElementById('font-status');
+    if (wrapStatus) wrapStatus.innerText = `Wrap: ${appSettings.wordWrap ? 'On' : 'Off'}`;
+    if (fontStatus) fontStatus.innerText = `Font: ${appSettings.fontSize}px`;
+}
+
 // Split Pane
 function initSplitPane() {
     Split(['#editor-pane', '#preview-pane'], {
@@ -347,7 +402,7 @@ function saveSettings() {
     appSettings.theme = theme;
     appSettings.cdns = cdnText.split('\n').filter(l => l.trim().length > 0);
     
-    localStorage.setItem('vscode-clone-settings', JSON.stringify(appSettings));
+    persistSettings();
     monaco.editor.setTheme(theme);
     updatePreview();
     closeModals();
@@ -418,6 +473,144 @@ function loadTemplate(type) {
     saveSettings(); // To save CDNs
     init(); // Reload
 }
+
+function getLanguageForFile(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    if (ext === 'js') return 'javascript';
+    if (ext === 'css') return 'css';
+    if (ext === 'html') return 'html';
+    if (ext === 'json') return 'json';
+    if (ext === 'md') return 'markdown';
+    return 'plaintext';
+}
+
+// --- COMMAND PALETTE ---
+const commandDefinitions = [
+    { id: 'file:new', label: 'File: New File', hint: 'Create a new file', action: () => promptNewFile() },
+    { id: 'file:rename', label: 'File: Rename Active File', hint: 'Rename current file', action: () => renameFile(activeFile) },
+    { id: 'file:duplicate', label: 'File: Duplicate Active File', hint: 'Create a copy', action: () => duplicateFile(activeFile) },
+    { id: 'view:toggle-sidebar', label: 'View: Toggle Sidebar', hint: 'Show/hide explorer', action: () => toggleSidebar() },
+    { id: 'view:toggle-console', label: 'View: Toggle Console', hint: 'Show/hide console', action: () => toggleConsole() },
+    { id: 'editor:toggle-wrap', label: 'Editor: Toggle Word Wrap', hint: 'Wrap lines', action: () => toggleWordWrap() },
+    { id: 'editor:toggle-minimap', label: 'Editor: Toggle Minimap', hint: 'Show/hide minimap', action: () => toggleMinimap() },
+    { id: 'editor:font-increase', label: 'Editor: Increase Font Size', hint: 'Zoom in', action: () => adjustFontSize(1) },
+    { id: 'editor:font-decrease', label: 'Editor: Decrease Font Size', hint: 'Zoom out', action: () => adjustFontSize(-1) },
+    { id: 'editor:format', label: 'Editor: Format Document', hint: 'Format current file', action: () => formatDocument() },
+    { id: 'editor:find', label: 'Editor: Find', hint: 'Search in file', action: () => editor?.trigger('keyboard', 'actions.find', null) },
+    { id: 'editor:replace', label: 'Editor: Replace', hint: 'Search and replace', action: () => editor?.trigger('keyboard', 'editor.action.startFindReplaceAction', null) },
+    { id: 'run:preview', label: 'Run: Update Preview', hint: 'Refresh preview', action: () => updatePreview() },
+    { id: 'settings:open', label: 'Preferences: Open Settings', hint: 'Open settings modal', action: () => openSettingsModal() }
+];
+let filteredCommands = [...commandDefinitions];
+let commandIndex = 0;
+
+function openCommandPalette() {
+    const modal = document.getElementById('command-modal');
+    const input = document.getElementById('command-input');
+    modal.classList.remove('hidden');
+    input.value = '';
+    filteredCommands = [...commandDefinitions];
+    commandIndex = 0;
+    renderCommandList();
+    setTimeout(() => input.focus(), 0);
+}
+
+function closeCommandPalette() {
+    document.getElementById('command-modal').classList.add('hidden');
+}
+
+function renderCommandList() {
+    const list = document.getElementById('command-list');
+    list.innerHTML = '';
+    if (filteredCommands.length === 0) {
+        list.innerHTML = '<div class="px-4 py-3 text-xs text-gray-500">No matching commands</div>';
+        return;
+    }
+    filteredCommands.forEach((cmd, index) => {
+        const item = document.createElement('div');
+        item.className = `command-item ${index === commandIndex ? 'active' : ''}`;
+        item.innerHTML = `<div>${cmd.label}</div><span>${cmd.hint}</span>`;
+        item.onclick = () => runCommand(index);
+        list.appendChild(item);
+    });
+}
+
+function runCommand(index) {
+    const cmd = filteredCommands[index];
+    if (!cmd) return;
+    closeCommandPalette();
+    cmd.action();
+}
+
+function toggleWordWrap() {
+    appSettings.wordWrap = !appSettings.wordWrap;
+    editor?.updateOptions({ wordWrap: appSettings.wordWrap ? 'on' : 'off' });
+    persistSettings();
+    toast(`Word wrap ${appSettings.wordWrap ? 'enabled' : 'disabled'}`);
+}
+
+function toggleMinimap() {
+    appSettings.minimap = !appSettings.minimap;
+    editor?.updateOptions({ minimap: { enabled: appSettings.minimap } });
+    persistSettings();
+    toast(`Minimap ${appSettings.minimap ? 'enabled' : 'disabled'}`);
+}
+
+function adjustFontSize(delta) {
+    const nextSize = Math.min(24, Math.max(10, appSettings.fontSize + delta));
+    appSettings.fontSize = nextSize;
+    editor?.updateOptions({ fontSize: appSettings.fontSize });
+    persistSettings();
+}
+
+function formatDocument() {
+    const action = editor?.getAction('editor.action.formatDocument');
+    if (action) {
+        action.run();
+    }
+}
+
+document.addEventListener('keydown', (event) => {
+    const isPaletteOpen = !document.getElementById('command-modal').classList.contains('hidden');
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.code === 'KeyP') {
+        event.preventDefault();
+        openCommandPalette();
+        return;
+    }
+    if (!isPaletteOpen) return;
+
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        closeCommandPalette();
+    }
+    if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        commandIndex = Math.min(filteredCommands.length - 1, commandIndex + 1);
+        renderCommandList();
+    }
+    if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        commandIndex = Math.max(0, commandIndex - 1);
+        renderCommandList();
+    }
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        runCommand(commandIndex);
+    }
+});
+
+document.getElementById('command-input').addEventListener('input', (event) => {
+    const query = event.target.value.toLowerCase();
+    filteredCommands = commandDefinitions.filter(cmd => cmd.label.toLowerCase().includes(query));
+    commandIndex = 0;
+    renderCommandList();
+});
+
+document.getElementById('command-modal').addEventListener('click', (event) => {
+    if (event.target.id === 'command-modal') {
+        closeCommandPalette();
+    }
+});
 
 // --- BOOT ---
 init();
